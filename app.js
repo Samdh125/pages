@@ -188,7 +188,7 @@ function renderTable() {
   const body = document.getElementById("overplayBody");
   body.innerHTML = "";
 
-  list.slice(0, 120).forEach((s, idx) => {
+  list.forEach((s, idx) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${idx + 1}</td>
@@ -314,16 +314,13 @@ function makeMonthChart(rows) {
 }
 
 function makeBubbleChart(bySong) {
-  const dataset = [...bySong]
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 42)
-    .map((s) => ({
-      x: s.total,
-      y: s.yearCount,
-      r: Math.max(4, s.recent12 * 2 + 4),
-      song: s.song,
-      overplay: s.overplayScore,
-    }));
+  const dataset = [...bySong].map((s) => ({
+    x: s.total,
+    y: s.yearCount,
+    r: Math.max(4, s.recent12 * 2 + 4),
+    song: s.song,
+    overplay: s.overplayScore,
+  }));
 
   const chart = new Chart(document.getElementById("bubbleChart"), {
     type: "bubble",
