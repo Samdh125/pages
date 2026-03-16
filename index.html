@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Church Songs Insights Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+    ></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <header class="hero">
+      <p class="eyebrow">Worship Analytics</p>
+      <h1>Church Song Usage Dashboard</h1>
+      <p class="hero-copy">
+        Explore song history from multiple years, surface overplayed songs, and
+        discover seasonal trends.
+      </p>
+      <div class="stat-grid" id="kpiCards"></div>
+    </header>
+
+    <main class="layout">
+      <section class="panel control-panel">
+        <h2>Overplay Detector</h2>
+        <p class="muted">
+          Overplay score combines total repeats, short-cycle repeats, and recent
+          momentum.
+        </p>
+
+        <div class="controls">
+          <label>
+            Search song
+            <input id="songSearch" type="text" placeholder="Type a title..." />
+          </label>
+
+          <label>
+            Minimum total plays
+            <input id="minPlays" type="range" min="1" max="20" value="4" />
+            <span id="minPlaysValue">4</span>
+          </label>
+
+          <label>
+            Sort by
+            <select id="sortBy">
+              <option value="score">Overplay score</option>
+              <option value="total">Total plays</option>
+              <option value="recent">Recent plays</option>
+              <option value="name">Song name</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Song</th>
+                <th>Overplay</th>
+                <th>Total</th>
+                <th>Recent</th>
+                <th>Last Played</th>
+              </tr>
+            </thead>
+            <tbody id="overplayBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel chart-panel">
+        <h2>Top Songs by Total Plays</h2>
+        <canvas id="topSongsChart"></canvas>
+      </section>
+
+      <section class="panel chart-panel">
+        <h2>Song Entries by Year</h2>
+        <canvas id="yearlyChart"></canvas>
+      </section>
+
+      <section class="panel chart-panel">
+        <h2>Seasonality by Month (All Years Combined)</h2>
+        <canvas id="monthChart"></canvas>
+      </section>
+
+      <section class="panel chart-panel wide-panel">
+        <h2>Song Footprint Map</h2>
+        <p class="muted">
+          Each bubble is a song. Bigger bubbles indicate stronger recent usage.
+        </p>
+        <canvas id="bubbleChart"></canvas>
+      </section>
+
+      <section class="panel insight-panel wide-panel">
+        <h2>Automatic Insights</h2>
+        <ul id="insightList"></ul>
+      </section>
+    </main>
+  </body>
+</html>
