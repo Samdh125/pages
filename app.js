@@ -3,6 +3,10 @@ const state = {
   bySong: [],
   charts: [],
   latestMonthKey: null,
+  monthKeys: [],
+  windowStartKey: null,
+  windowEndKey: null,
+  rollingMonths: 6,
 };
 
 const monthLabels = [
@@ -32,6 +36,95 @@ function parseMonthKey(key) {
 function shiftMonth(year, month, delta) {
   const d = new Date(year, month - 1 + delta, 1);
   return monthKey(d.getFullYear(), d.getMonth() + 1);
+}
+
+function buildMonthRange(startKey, endKey) {
+  const months = [];
+  let current = startKey;
+
+  while (current <= endKey) {
+    months.push(current);
+    const next = parseMonthKey(current);
+    current = shiftMonth(next.year, next.month, 1);
+  }
+
+  return months;
+}
+
+function getAllMonthKeys(rows) {
+  return [...new Set(rows.map((row) => row.monthKey))].sort();
+}
+
+function clampMonthKey(key) {
+  if (!state.monthKeys.length) return key;
+  if (key < state.monthKeys[0]) return state.monthKeys[0];
+  if (key > state.monthKeys[state.monthKeys.length - 1]) {
+    return state.monthKeys[state.monthKeys.length - 1];
+  }
+  return key;
+}
+
+function syncWindowInputs() {
+  const startInput = document.getElementById("windowStart");
+  const endInput = document.getElementById("windowEnd");
+  const rollingInput = document.getElementById("rollingMonths");
+  const summary = document.getElementById("windowSummary");
+
+  startInput.value = state.windowStartKey;
+  endInput.value = state.windowEndKey;
+  rollingInput.value = String(state.rollingMonths);
+
+  if (state.monthKeys.length) {
+    const min = state.monthKeys[0];
+    const max = state.monthKeys[state.monthKeys.length - 1];
+    startInput.min = min;
+    startInput.max = max;
+    endInput.min = min;
+    endInput.max = max;
+  }
+
+  const visibleMonths = buildMonthRange(
+    state.windowStartKey,
+    state.windowEndKey,
+  ).length;
+  summary.textContent = `Showing ${formatMonthKey(state.windowStartKey)} to ${formatMonthKey(state.windowEndKey)} (${visibleMonths} months). Lines track plays in the trailing ${state.rollingMonths} months for the top 5 songs in the latest trailing window ending ${formatMonthKey(state.latestMonthKey)}.`;
+}
+
+function initializeRollingWindow(rows) {
+  state.monthKeys = getAllMonthKeys(rows);
+
+  if (!state.monthKeys.length) {
+    return;
+  }
+
+  state.windowEndKey = state.monthKeys[state.monthKeys.length - 1];
+  const end = parseMonthKey(state.windowEndKey);
+  state.windowStartKey = clampMonthKey(shiftMonth(end.year, end.month, -5));
+}
+
+function setRollingWindow(anchor, value) {
+  const safeValue = clampMonthKey(value);
+
+  if (anchor === "start") {
+    state.windowStartKey = safeValue;
+    if (state.windowStartKey > state.windowEndKey) {
+      state.windowEndKey = state.windowStartKey;
+    }
+  } else if (anchor === "end") {
+    state.windowEndKey = safeValue;
+    if (state.windowEndKey < state.windowStartKey) {
+      state.windowStartKey = state.windowEndKey;
+    }
+  }
+}
+
+function setRollingMonths(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return;
+  }
+
+  state.rollingMonths = Math.max(1, Math.min(60, Math.round(parsed)));
 }
 
 function normalizeRows(rows) {
@@ -313,6 +406,122 @@ function makeMonthChart(rows) {
   state.charts.push(chart);
 }
 
+function makeRollingTopSongsChart(rows) {
+  const monthRange = buildMonthRange(state.windowStartKey, state.windowEndKey);
+  const allMonthRange = buildMonthRange(
+    state.monthKeys[0],
+    state.monthKeys[state.monthKeys.length - 1],
+  );
+  const latestMonth = parseMonthKey(state.latestMonthKey);
+  const rankingWindowKeys = Array.from(
+    { length: state.rollingMonths },
+    (_, index) => shiftMonth(latestMonth.year, latestMonth.month, -index),
+  );
+  const rankingWindowSet = new Set(rankingWindowKeys);
+  const latestWindowCounts = new Map();
+
+  rows.forEach((row) => {
+    if (!rankingWindowSet.has(row.monthKey)) {
+      return;
+    }
+
+    latestWindowCounts.set(
+      row.song,
+      (latestWindowCounts.get(row.song) || 0) + 1,
+    );
+  });
+
+  const topSongs = [...latestWindowCounts.entries()].map(([song]) => song);
+
+  const palette = [
+    "#db5f00",
+    "#007a7a",
+    "#c23b22",
+    "#5966d8",
+    "#1f8f4e",
+    "#a65200",
+    "#d14d72",
+    "#0062b8",
+    "#7a4cc2",
+    "#4d7c0f",
+  ];
+
+  const datasets = topSongs.map((song, index) => {
+    const countsByMonth = new Map(allMonthRange.map((key) => [key, 0]));
+
+    rows.forEach((row) => {
+      if (row.song === song) {
+        countsByMonth.set(row.monthKey, countsByMonth.get(row.monthKey) + 1);
+      }
+    });
+
+    const rollingCounts = monthRange.map((key) => {
+      const current = parseMonthKey(key);
+      let total = 0;
+
+      for (let offset = state.rollingMonths - 1; offset >= 0; offset -= 1) {
+        const trailingKey = shiftMonth(current.year, current.month, -offset);
+        total += countsByMonth.get(trailingKey) || 0;
+      }
+
+      return total;
+    });
+
+    return {
+      label: song,
+      data: rollingCounts,
+      borderColor: palette[index % palette.length],
+      backgroundColor: `${palette[index % palette.length]}22`,
+      tension: 0.25,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      borderWidth: 2,
+    };
+  });
+
+  const chart = new Chart(document.getElementById("rollingTopSongsChart"), {
+    type: "line",
+    data: {
+      labels: monthRange.map(formatMonthKey),
+      datasets,
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: "nearest",
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          position: "none",
+        },
+        tooltip: {
+          callbacks: {
+            title(items) {
+              return items[0]?.label || "";
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Month" },
+        },
+        y: {
+          title: {
+            display: true,
+            text: `Plays In Last ${state.rollingMonths} Months`,
+          },
+          beginAtZero: true,
+          ticks: { precision: 0, stepSize: 1 },
+        },
+      },
+    },
+  });
+  state.charts.push(chart);
+}
+
 function makeBubbleChart(bySong) {
   const dataset = [...bySong].map((s) => ({
     x: s.total,
@@ -409,23 +618,45 @@ function attachControls() {
   const minPlays = document.getElementById("minPlays");
   const minPlaysValue = document.getElementById("minPlaysValue");
   const sortBy = document.getElementById("sortBy");
+  const windowStart = document.getElementById("windowStart");
+  const windowEnd = document.getElementById("windowEnd");
+  const rollingMonths = document.getElementById("rollingMonths");
 
   const rerender = () => {
     minPlaysValue.textContent = minPlays.value;
     renderTable();
   };
 
+  const rerenderWindowChart = () => {
+    syncWindowInputs();
+    renderAll();
+  };
+
   search.addEventListener("input", rerender);
   minPlays.addEventListener("input", rerender);
   sortBy.addEventListener("change", rerender);
+  windowStart.addEventListener("change", (event) => {
+    setRollingWindow("start", event.target.value);
+    rerenderWindowChart();
+  });
+  windowEnd.addEventListener("change", (event) => {
+    setRollingWindow("end", event.target.value);
+    rerenderWindowChart();
+  });
+  rollingMonths.addEventListener("input", (event) => {
+    setRollingMonths(event.target.value);
+    rerenderWindowChart();
+  });
 }
 
 function renderAll() {
+  syncWindowInputs();
   buildKpis(state.rows, state.bySong);
   renderTable();
   destroyCharts();
   makeTopSongsChart(state.bySong);
   makeYearlyChart(state.rows);
+  makeRollingTopSongsChart(state.rows);
   makeMonthChart(state.rows);
   makeBubbleChart(state.bySong);
   buildInsights(state.rows, state.bySong);
@@ -452,6 +683,7 @@ async function init() {
     const raw = await loadCsv();
     state.rows = normalizeRows(raw);
     state.bySong = computeBySong(state.rows);
+    initializeRollingWindow(state.rows);
 
     attachControls();
     renderAll();

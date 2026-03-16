@@ -93,6 +93,40 @@
         <canvas id="yearlyChart"></canvas>
       </section>
 
+      <section class="panel chart-panel wide-panel">
+        <h2>Current Top 5 Trends</h2>
+        <p class="muted">
+          The 5 songs with the most plays in the latest trailing window ending
+          at the newest month in the dataset, shown across the selected viewing
+          range.
+        </p>
+        <div class="controls rolling-controls">
+          <label>
+            Window start
+            <input id="windowStart" type="month" />
+          </label>
+
+          <label>
+            Window end
+            <input id="windowEnd" type="month" />
+          </label>
+
+          <label>
+            Trailing months
+            <input
+              id="rollingMonths"
+              type="number"
+              min="1"
+              max="60"
+              value="6"
+            />
+          </label>
+
+          <div class="range-summary" id="windowSummary"></div>
+        </div>
+        <canvas id="rollingTopSongsChart"></canvas>
+      </section>
+
       <section class="panel chart-panel">
         <h2>Seasonality by Month (All Years Combined)</h2>
         <canvas id="monthChart"></canvas>
