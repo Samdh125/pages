@@ -274,6 +274,7 @@ tbody tr:hover {
 .chart-panel canvas,
 .wide-panel canvas {
   width: 100%;
+  height: 320px;
   min-height: 280px;
   max-height: 380px;
 }
@@ -300,6 +301,7 @@ tbody tr:hover {
 
   .chart-panel canvas,
   .wide-panel canvas {
+    height: 240px;
     min-height: 240px;
   }
 }

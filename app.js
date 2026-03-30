@@ -494,7 +494,7 @@ function makeRollingTopSongsChart(rows) {
       },
       plugins: {
         legend: {
-          position: "none",
+          display: false,
         },
         tooltip: {
           callbacks: {
